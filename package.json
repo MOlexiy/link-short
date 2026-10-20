@@ -1,0 +1,33 @@
+{
+  "name": "link-short",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Serverless URL shortener with click analytics — Nuxt 4, AWS Lambda (Node.js + TypeScript), MongoDB Atlas, SST",
+  "type": "module",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "npm run dev:local",
+    "dev:local": "concurrently -n api,web -c blue,green \"npm run dev -w @link-short/api\" \"npm run dev -w @link-short/web\"",
+    "dev:sst": "sst dev",
+    "deploy": "sst deploy --stage production",
+    "remove": "sst remove",
+    "db:up": "docker compose up -d mongo",
+    "db:indexes": "npm run db:indexes -w @link-short/api",
+    "db:seed": "npm run db:seed -w @link-short/api",
+    "db:explain": "npm run db:explain -w @link-short/api",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build:web": "npm run build -w @link-short/web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "sst": "4.17.2",
+    "typescript": "~5.9.3"
+  }
+}

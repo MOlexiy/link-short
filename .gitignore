@@ -1,0 +1,26 @@
+node_modules/
+dist/
+coverage/
+
+# SST
+.sst/
+sst-env.d.ts
+
+# Nuxt
+.nuxt/
+.output/
+.data/
+.nitro/
+.cache/
+
+# env
+.env
+.env.*
+!.env.example
+
+# misc
+*.log
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

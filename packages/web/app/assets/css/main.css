@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Cool "paper" + deep slate ink + a single cobalt signal colour.
+ * Monospace is reserved for things you'd actually type: URLs and slugs.
+ */
+@theme {
+  --font-sans: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-signal: var(--signal);
+  --color-signal-soft: var(--signal-soft);
+  --color-danger: var(--danger);
+  --color-on-signal: var(--on-signal);
+}
+
+:root {
+  --paper: #f1f4f8;
+  --surface: #ffffff;
+  --ink: #1b2430;
+  --muted: #5f6b7b;
+  --line: #d6dce5;
+  --signal: #2f5bea;
+  --signal-soft: #dfe7fd;
+  --danger: #c2372f;
+  --on-signal: #ffffff;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #141a22;
+    --surface: #1b232d;
+    --ink: #e7ecf2;
+    --muted: #97a3b3;
+    --line: #2e3a48;
+    --signal: #7f9cff;
+    --signal-soft: #253257;
+    --danger: #ff7a70;
+    --on-signal: #0f1730;
+    color-scheme: dark;
+  }
+}
+
+html {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Tailwind v4: custom classes that can be composed with @apply are declared as @utility. */
+@utility field {
+  @apply w-full rounded-md border border-line bg-surface px-3 py-2 text-ink placeholder:text-muted/70
+    focus:border-signal focus:outline-none focus:ring-2 focus:ring-signal/25;
+}
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 font-semibold transition-colors
+    disabled:cursor-not-allowed disabled:opacity-60;
+}
+@utility btn-primary {
+  @apply btn bg-signal text-on-signal hover:brightness-110;
+}
+@utility btn-quiet {
+  @apply btn border border-line bg-surface text-ink hover:border-ink/40;
+}
+@utility link {
+  @apply text-signal underline decoration-signal/30 underline-offset-4 hover:decoration-signal;
+}
