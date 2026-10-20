@@ -9,17 +9,20 @@ import { config } from "../config.js";
 export type RedirectLookup =
   | { status: "ok"; linkId: Types.ObjectId; url: string }
   | { status: "not_found" }
-  | { status: "expired" };
+  | { status: "expired" }
+  | { status: "disabled" };
 
 export async function findRedirectTarget(slug: string): Promise<RedirectLookup> {
   // Projection keeps the document small — only what the redirect needs.
-  const link = await Link.findOne({ slug }, { url: 1, expiresAt: 1 }).lean<{
+  const link = await Link.findOne({ slug }, { url: 1, expiresAt: 1, disabledAt: 1 }).lean<{
     _id: Types.ObjectId;
     url: string;
     expiresAt: Date | null;
+    disabledAt: Date | null;
   }>();
 
   if (!link) return { status: "not_found" };
+  if (link.disabledAt) return { status: "disabled" };
   if (link.expiresAt && link.expiresAt.getTime() <= Date.now()) return { status: "expired" };
   return { status: "ok", linkId: link._id, url: link.url };
 }

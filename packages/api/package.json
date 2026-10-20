@@ -10,7 +10,8 @@
     "test:watch": "vitest",
     "db:indexes": "tsx --env-file-if-exists=.env src/scripts/sync-indexes.ts",
     "db:seed": "tsx --env-file-if-exists=.env src/scripts/seed.ts",
-    "db:explain": "tsx --env-file-if-exists=.env src/scripts/explain.ts"
+    "db:explain": "tsx --env-file-if-exists=.env src/scripts/explain.ts",
+    "link:disable": "tsx --env-file-if-exists=.env src/scripts/disable-link.ts"
   },
   "dependencies": {
     "bowser": "^2.14.1",

@@ -6,6 +6,7 @@ export interface LinkDto {
   clicks: number;
   lastClickAt: string | null;
   expiresAt: string | null;
+  disabled: boolean;
   createdAt: string;
 }
 

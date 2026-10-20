@@ -10,6 +10,8 @@ import { routes } from "../routes/index.js";
  */
 export function createApp() {
   const app = express();
+  // Local only: lets tests simulate different client IPs via X-Forwarded-For.
+  // In AWS the IP comes from API Gateway's sourceIp, which clients can't spoof.
   app.set("trust proxy", true);
   app.disable("x-powered-by");
 
@@ -36,7 +38,17 @@ export function createApp() {
   // Malformed JSON from express.json() and anything else that escaped.
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     const isJsonError = err instanceof SyntaxError && "body" in err;
-    send(res, toErrorResponse(isJsonError ? new HttpError(400, "INVALID_JSON", "Request body must be valid JSON") : err));
+    const isTooLarge = (err as { type?: string } | null)?.type === "entity.too.large";
+    send(
+      res,
+      toErrorResponse(
+        isJsonError
+          ? new HttpError(400, "INVALID_JSON", "Request body must be valid JSON")
+          : isTooLarge
+            ? new HttpError(413, "PAYLOAD_TOO_LARGE", "Request body is too large")
+            : err,
+      ),
+    );
   });
 
   return app;

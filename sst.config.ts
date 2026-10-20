@@ -9,7 +9,23 @@
  * Set secrets once per stage:
  *   npx sst secret set MongoUri "mongodb+srv://..." --stage production
  *   npx sst secret set VisitorSalt "$(openssl rand -hex 32)" --stage production
+ *   npx sst secret set SafeBrowsingKey "<google api key>" --stage production   # optional
  */
+
+/**
+ * Abuse protection for a public, anonymous shortener (see README → Security).
+ * Per-IP limits live in MongoDB; API Gateway throttling caps total request rate.
+ */
+const protection = {
+  maxLinkTtlDays: 7, // every link expires within a week
+  createPerIpPerHour: 10,
+  createPerIpPerDay: 30,
+  createGlobalPerDay: 1000,
+  blockedDomains: "", // extra comma-separated domains, on top of the built-in list
+  apiRateLimit: 50, // requests/second across the whole API (steady state)
+  apiBurstLimit: 100,
+};
+
 export default $config({
   app(input) {
     const isProd = input?.stage === "production";
@@ -27,6 +43,7 @@ export default $config({
   async run() {
     const mongoUri = new sst.Secret("MongoUri");
     const visitorSalt = new sst.Secret("VisitorSalt", "local-dev-salt");
+    const safeBrowsingKey = new sst.Secret("SafeBrowsingKey", ""); // empty = check disabled
 
     // Defaults for every Lambda in the app.
     $transform(sst.aws.Function, (args) => {
@@ -44,13 +61,24 @@ export default $config({
         maxAge: "1 day",
       },
       // Every route handler gets access to these secrets via `Resource.*`.
-      link: [mongoUri, visitorSalt],
+      link: [mongoUri, visitorSalt, safeBrowsingKey],
+      transform: {
+        // Account-level safety net: beyond this API Gateway answers 429 itself,
+        // before any Lambda (or bill) is involved.
+        stage: (args) => {
+          args.defaultRouteSettings = {
+            throttlingRateLimit: protection.apiRateLimit,
+            throttlingBurstLimit: protection.apiBurstLimit,
+          };
+        },
+      },
     });
 
     const web = new sst.aws.Nuxt("Web", {
       path: "packages/web",
       environment: {
         NUXT_PUBLIC_API_URL: api.url,
+        NUXT_PUBLIC_MAX_LINK_TTL_DAYS: String(protection.maxLinkTtlDays),
       },
     });
 
@@ -60,6 +88,11 @@ export default $config({
       environment: {
         WEB_URL: web.url,
         NODE_OPTIONS: "--enable-source-maps",
+        MAX_LINK_TTL_DAYS: String(protection.maxLinkTtlDays),
+        RATE_LIMIT_CREATE_PER_HOUR: String(protection.createPerIpPerHour),
+        RATE_LIMIT_CREATE_PER_DAY: String(protection.createPerIpPerDay),
+        RATE_LIMIT_GLOBAL_CREATE_PER_DAY: String(protection.createGlobalPerDay),
+        BLOCKED_DOMAINS: protection.blockedDomains,
       },
     });
 

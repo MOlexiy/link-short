@@ -29,6 +29,7 @@ export class HttpError extends Error {
     public readonly code: string,
     message: string,
     public readonly details?: unknown,
+    public readonly headers?: Record<string, string>,
   ) {
     super(message);
     this.name = "HttpError";
@@ -66,7 +67,7 @@ export function parseJsonBody(raw: string | undefined | null): unknown {
 /** Maps any thrown error to a consistent JSON error shape: { error: { code, message, details? } }. */
 export function toErrorResponse(err: unknown): ApiResponse {
   if (err instanceof HttpError) {
-    return json(err.status, { error: { code: err.code, message: err.message, details: err.details } });
+    return json(err.status, { error: { code: err.code, message: err.message, details: err.details } }, err.headers);
   }
   if (err instanceof ZodError) {
     const details = err.issues.map((i) => ({ path: i.path.join("."), message: i.message }));

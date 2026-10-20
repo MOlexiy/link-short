@@ -14,10 +14,13 @@ export interface LinkDto {
   clicks: number;
   lastClickAt: string | null;
   expiresAt: string | null;
+  disabled: boolean;
   createdAt: string;
 }
 
-type LinkLike = Pick<LinkDoc, "slug" | "url" | "clicks" | "lastClickAt" | "expiresAt" | "createdAt">;
+type LinkLike = Pick<LinkDoc, "slug" | "url" | "clicks" | "lastClickAt" | "expiresAt" | "createdAt"> & {
+  disabledAt?: Date | null;
+};
 
 export function toLinkDto(link: LinkLike, baseUrl: string): LinkDto {
   return {
@@ -27,6 +30,7 @@ export function toLinkDto(link: LinkLike, baseUrl: string): LinkDto {
     clicks: link.clicks ?? 0,
     lastClickAt: link.lastClickAt ? link.lastClickAt.toISOString() : null,
     expiresAt: link.expiresAt ? link.expiresAt.toISOString() : null,
+    disabled: Boolean(link.disabledAt),
     createdAt: link.createdAt.toISOString(),
   };
 }

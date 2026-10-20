@@ -9,6 +9,7 @@ A serverless URL shortener with click analytics.
 - Unique visitors without storing IP addresses
 - Bots and link-preview crawlers (Telegram, Slack, …) are stored but excluded from stats
 - Stats dashboard with a 7 / 30 / 90-day range, bucketed in the viewer's time zone
+- Layered abuse protection: rate limits on MongoDB, URL policy, Safe Browsing, forced expiry, kill switch
 
 ## Architecture
 
@@ -45,6 +46,8 @@ There are no user accounts: the dashboard keeps a random owner id in a cookie an
 | `{ slug: 1 }` unique | Redirect lookup. Uniqueness is enforced by the index, not by a racy find-then-insert check |
 | `{ ownerId: 1, _id: -1 }` | "My links" list: equality on `ownerId`, then sort by `_id` with no in-memory sort; also serves the pagination cursor |
 | `{ expiresAt: 1 }` TTL, `expireAfterSeconds: 0`, partial on `{ expiresAt: { $type: "date" } }` | MongoDB deletes expired links. The partial filter keeps links that never expire out of the index |
+
+**`rate_limits`**: `{ _id: "<key>:<window>:<start>", count, expiresAt }` with a TTL index on `expiresAt` (see [Security](#security-and-abuse-protection))
 
 **`clicks`**: one document per click
 
@@ -90,6 +93,31 @@ Mongoose does not cast inside `aggregate()`, so `linkId` is passed as an `Object
 - **Country** is read from CDN headers (`CloudFront-Viewer-Country`, `CF-IPCountry`). The plain API Gateway endpoint doesn't provide one, so put CloudFront or Cloudflare in front of the short domain to fill it; otherwise it shows as "Unknown".
 - **Expiry** is checked in the redirect handler as well, because the TTL monitor only runs about once a minute.
 
+## Security and abuse protection
+
+An anonymous URL shortener is an easy tool for spammers and phishers: a malicious destination hides behind a trusted-looking short link. The service defends itself in layers, cheapest first, so floods of junk never reach the expensive checks:
+
+| Layer | Where | What it stops |
+| --- | --- | --- |
+| API Gateway throttling (50 rps, burst 100) | [`sst.config.ts`](sst.config.ts) | Request floods. Answered with 429 before any Lambda runs, so nothing is billed |
+| Body size limit (16 KB) and strict schema (unknown fields rejected) | [`lib/lambda.ts`](packages/api/src/lib/lambda.ts), [`lib/validation.ts`](packages/api/src/lib/validation.ts) | Oversized and malformed payloads |
+| Honeypot field | form + `website` field in the schema | Naive form-filling bots |
+| URL policy | [`lib/url-policy.ts`](packages/api/src/lib/url-policy.ts) | `javascript:`/`data:` URLs, `user:pass@` tricks (`https://google.com@evil.example`), raw IPs, local hosts, other shorteners (redirect chains that hide the target), self-links (redirect loops), a configurable domain blocklist |
+| Per-IP rate limits (10/hour, 30/day) plus a global daily cap (1,000 links) | [`services/rate-limit.service.ts`](packages/api/src/services/rate-limit.service.ts) | Mass creation from one client; the global cap limits the damage of a distributed attack |
+| Google Safe Browsing (optional) | [`lib/safe-browsing.ts`](packages/api/src/lib/safe-browsing.ts) | Known phishing and malware URLs |
+| Forced expiry (7 days) | `MAX_LINK_TTL_DAYS` | Anything that slips through disappears on its own (MongoDB TTL index) |
+| Kill switch | `npm run link:disable -- <slug> "reason"` | A reported link stops redirecting immediately; its data is kept for investigation |
+
+Implementation notes:
+
+- **Rate limiter on MongoDB**: fixed-window counters, one document per key and window, updated with a single atomic `findOneAndUpdate` (`$inc` + `$setOnInsert`, `upsert`). Expired windows are removed by a TTL index. A test fires 20 parallel requests at a limit of 5 and checks that exactly 5 succeed. When two upserts of a brand-new window collide, the E11000 error is retried as a plain `$inc`. The fixed window allows up to 2× the limit around a window boundary, which is acceptable here; a sliding window would cost more writes.
+- **Only valid requests are counted**: validation and URL policy run before the limiter, so a typo doesn't use up the user's quota.
+- **No raw IPs are stored**: limiter keys use a salted SHA-256 of the IP. In AWS the IP comes from API Gateway's `sourceIp`, which clients can't spoof; the local Express server trusts `X-Forwarded-For` only so tests can simulate several clients.
+- **Safe Browsing fails open**: it has a 1.5 s timeout, and if Google is unavailable the link is allowed and a warning is logged. The other layers still apply. Enable it with `npx sst secret set SafeBrowsingKey <key>`.
+- **The UI mirrors the limits**: the expiry selector offers only lifetimes the API accepts (`NUXT_PUBLIC_MAX_LINK_TTL_DAYS`), and 429/422 errors are shown with the API's message ("Try again in 32 minutes").
+
+Not included (out of scope for a demo): CAPTCHA (Cloudflare Turnstile would be the next step), real authentication, re-checking old links against Safe Browsing on a schedule, and AWS WAF (managed IP-reputation rules cost about $5+/month).
+
 ## Project structure
 
 ```
@@ -101,7 +129,7 @@ packages/api
   src/models/*.ts             # Mongoose schemas, validation, indexes
   src/lib/lambda.ts           # API Gateway v2 event → request → response adapter
   src/local/app.ts            # Express adapter for local dev and integration tests
-  src/scripts/*.ts            # db:indexes, db:seed, db:explain
+  src/scripts/*.ts            # db:indexes, db:seed, db:explain, link:disable
   test/                       # Vitest: unit + integration against a real in-memory MongoDB
 packages/web                  # Nuxt 4 dashboard (SSR), Tailwind CSS v4, hand-drawn SVG charts
 ```
@@ -128,7 +156,7 @@ npm run db:seed -- <ls_owner value>   # adds /demo with ~60 days of clicks
 Tests use `mongodb-memory-server`, so no database setup is needed:
 
 ```bash
-npm test          # 42 tests: unit + HTTP integration + Lambda handler tests
+npm test          # 71 tests: unit, HTTP integration, Lambda handlers, abuse protection
 npm run typecheck
 ```
 

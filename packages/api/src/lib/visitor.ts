@@ -13,6 +13,11 @@ export function visitorId(params: { ip: string; userAgent: string; salt: string;
     .slice(0, 22);
 }
 
+/** Stable salted hash of a client IP, used as a rate-limit key (raw IPs are never stored). */
+export function hashIp(ip: string, salt: string): string {
+  return createHash("sha256").update(`${salt}|ip|${ip}`).digest("base64url").slice(0, 22);
+}
+
 /** Country headers set by common CDNs in front of the API. */
 const COUNTRY_HEADERS = ["cloudfront-viewer-country", "cf-ipcountry", "x-vercel-ip-country", "x-country-code"];
 

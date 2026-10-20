@@ -1,4 +1,4 @@
-import { json, type ApiRequest, type RouteHandler } from "../lib/http.js";
+import { HttpError, json, type ApiRequest, type RouteHandler } from "../lib/http.js";
 import {
   createLinkSchema,
   listLinksQuerySchema,
@@ -8,6 +8,7 @@ import {
 } from "../lib/validation.js";
 import { createLink, deleteLink, getOwnedLink, listLinks, toLinkDto } from "../services/link.service.js";
 import { getLinkStats } from "../services/stats.service.js";
+import { effectiveTtlDays, guardLinkCreation } from "../services/abuse.service.js";
 import { config } from "../config.js";
 
 const shortBase = (req: ApiRequest) => config.shortBaseUrl ?? req.baseUrl;
@@ -15,8 +16,12 @@ const shortBase = (req: ApiRequest) => config.shortBaseUrl ?? req.baseUrl;
 /** POST /api/links */
 export const createLinkRoute: RouteHandler = async (req) => {
   const ownerId = requireOwner(req);
-  const input = createLinkSchema.parse(req.body ?? {});
-  const link = await createLink({ ...input, ownerId });
+  const { website, ...input } = createLinkSchema.parse(req.body ?? {});
+  if (website) throw new HttpError(400, "REJECTED", "Request rejected");
+
+  await guardLinkCreation({ url: input.url, ip: req.ip, baseUrl: shortBase(req) });
+
+  const link = await createLink({ ...input, expiresInDays: effectiveTtlDays(input.expiresInDays), ownerId });
   return json(201, toLinkDto(link, shortBase(req)));
 };
 

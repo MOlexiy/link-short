@@ -29,6 +29,9 @@ const linkSchema = new Schema(
     clicks: { type: Number, default: 0, min: 0 },
     lastClickAt: { type: Date, default: null },
     expiresAt: { type: Date, default: null },
+    /** Set by an operator (npm run link:disable) for abusive links — redirect stops, data is kept. */
+    disabledAt: { type: Date, default: null },
+    disabledReason: { type: String, maxlength: 200, default: null },
   },
   {
     collection: "links",

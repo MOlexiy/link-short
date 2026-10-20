@@ -1,6 +1,9 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
 import { connectDb } from "../db/connection.js";
-import { parseJsonBody, toErrorResponse, type ApiRequest, type ApiResponse, type RouteHandler } from "./http.js";
+import { HttpError, parseJsonBody, toErrorResponse, type ApiRequest, type ApiResponse, type RouteHandler } from "./http.js";
+
+/** Same limit as express.json() in the local server. The URL is the only large field. */
+export const MAX_BODY_BYTES = 16 * 1024;
 
 export interface HandlerOptions {
   /** Skip the DB connection for routes that don't need it. */
@@ -45,6 +48,9 @@ export function lambda(route: RouteHandler, options: HandlerOptions = {}) {
     let res: ApiResponse;
     try {
       const req = toApiRequest(event);
+      if (typeof req.body === "string" && Buffer.byteLength(req.body) > MAX_BODY_BYTES) {
+        throw new HttpError(413, "PAYLOAD_TOO_LARGE", "Request body is too large");
+      }
       req.body = parseJsonBody(req.body as string | undefined);
       if (options.db !== false) await connectDb();
       res = await route(req);

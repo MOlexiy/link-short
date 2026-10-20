@@ -2,7 +2,7 @@
   "name": "link-short",
   "version": "1.0.0",
   "private": true,
-  "description": "Serverless URL shortener with click analytics — Nuxt 4, AWS Lambda (Node.js + TypeScript), MongoDB Atlas, SST",
+  "description": "Serverless URL shortener with click analytics \u2014 Nuxt 4, AWS Lambda (Node.js + TypeScript), MongoDB Atlas, SST",
   "type": "module",
   "license": "MIT",
   "workspaces": [
@@ -23,7 +23,8 @@
     "db:explain": "npm run db:explain -w @link-short/api",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "build:web": "npm run build -w @link-short/web"
+    "build:web": "npm run build -w @link-short/web",
+    "link:disable": "npm run link:disable -w @link-short/api --"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

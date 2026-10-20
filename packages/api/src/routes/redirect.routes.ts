@@ -3,7 +3,7 @@ import { slugSchema } from "../lib/validation.js";
 import { findRedirectTarget, recordClick } from "../services/click.service.js";
 import { config } from "../config.js";
 
-function notFound(reason: "not_found" | "expired", slug: string) {
+function notFound(reason: "not_found" | "expired" | "disabled", slug: string) {
   // If the dashboard URL is known, send people to a friendly page instead of raw JSON.
   if (config.webUrl) {
     const target = new URL("/not-found", config.webUrl);
@@ -11,9 +11,9 @@ function notFound(reason: "not_found" | "expired", slug: string) {
     target.searchParams.set("reason", reason);
     return redirect(target.toString(), 302);
   }
-  return reason === "expired"
-    ? json(410, { error: { code: "EXPIRED", message: "This link has expired" } })
-    : json(404, { error: { code: "NOT_FOUND", message: "Link not found" } });
+  if (reason === "expired") return json(410, { error: { code: "EXPIRED", message: "This link has expired" } });
+  if (reason === "disabled") return json(410, { error: { code: "DISABLED", message: "This link has been disabled" } });
+  return json(404, { error: { code: "NOT_FOUND", message: "Link not found" } });
 }
 
 /** GET /{slug} — the hot path. */

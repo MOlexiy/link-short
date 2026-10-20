@@ -29,6 +29,9 @@ function onDelete(slug: string) {
         <NuxtLink :to="`/links/${link.slug}`" class="font-mono font-medium text-ink hover:text-signal">
           /{{ link.slug }}
         </NuxtLink>
+        <span v-if="link.disabled" class="ml-2 rounded bg-danger/10 px-1.5 py-0.5 text-xs font-medium text-danger">
+          Disabled
+        </span>
         <p class="truncate text-sm text-muted" :title="link.url">{{ displayUrl(link.url) }}</p>
         <p class="text-xs text-muted">
           Created {{ formatRelative(link.createdAt, now) }}<template v-if="link.expiresAt">, expires {{ formatRelative(link.expiresAt, now) }}</template>

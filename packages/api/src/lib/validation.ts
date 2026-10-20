@@ -21,6 +21,8 @@ export const createLinkSchema = z.strictObject({
     .refine(isHttpUrl, "Enter an absolute http:// or https:// URL"),
   slug: slugSchema.optional(),
   expiresInDays: z.number().int().min(1).max(365).optional(),
+  /** Honeypot: hidden in the form, so only bots fill it in. */
+  website: z.string().max(200).optional(),
 });
 export type CreateLinkInput = z.infer<typeof createLinkSchema>;
 

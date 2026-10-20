@@ -13,6 +13,8 @@ export default defineNuxtConfig({
     public: {
       // Overridden at runtime by NUXT_PUBLIC_API_URL (set by sst.config.ts).
       apiUrl: "http://localhost:4000",
+      // Must match MAX_LINK_TTL_DAYS on the API (0 = links may never expire).
+      maxLinkTtlDays: 0,
     },
   },
 
